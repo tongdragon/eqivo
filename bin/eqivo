@@ -65,7 +65,101 @@ $eqivo
             ->setElementHandler(Plan\Silence\Element::class, new Plan\Silence\Handler)
             ->setElementHandler(Plan\Speak\Element::class, new Plan\Speak\Handler)
             ->setElementHandler(Eqivo\Plan\Dial\Element::class, new Eqivo\Plan\Dial\Handler)
-            ->setElementHandler(Eqivo\Plan\PreAnswer\Element::class, new Eqivo\Plan\PreAnswer\Handler)
+            ->setElementHandler(Eqivo\Plan\PreAnswer\Element::class, new Eqi#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use RTCKit\Eqivo as Eqivo; // 使用 RTCKit\Eqivo 命名空间
+
+use RTCKit\FiCore\{ // 使用 RTCKit\FiCore 命名空间
+    Plan, // 命名空间 RTCKit\FiCore\Plan，用于设置计划
+    Command, // 命名空间 RTCKit\FiCore\Command，用于处理命令
+    Signal, // 命名空间 RTCKit\FiCore\Signal，用于处理信号
+};
+use RTCKit\FiCore\Switch\ESL; // 使用 RTCKit\FiCore\Switch\ESL 命名空间，该命名空间实现了 Event Socket Library
+
+error_reporting(-1); // 将错误报告级别设置为最高
+set_time_limit(0); // 设置执行时间限制为无限
+
+if (is_file(__DIR__ . '/../vendor/autoload.php')) { // 如果可以找到上级目录的 autoload.php 文件
+    $autoloadPath = __DIR__ . '/../vendor/autoload.php'; // 将该文件路径赋值给 $autoloadPath 变量
+} else if (is_file('./vendor/autoload.php')) { // 如果可以找到当前目录的 autoload.php 文件
+    $autoloadPath = './vendor/autoload.php'; // 将该文件路径赋值给 $autoloadPath 变量
+} else {
+    die('Cannot locate vendor/autoload.php file!' . PHP_EOL); // 否则输出错误信息并终止脚本
+}
+
+/** @psalm-suppress UnresolvableInclude */
+require_once($autoloadPath); // 引入 autoload.php 文件
+
+if (!defined('PHP_VERSION_ID') || (PHP_VERSION_ID < 80100)) { // 如果 PHP 版本小于 8.1
+    die('Eqivo requires PHP 8.1+' . PHP_EOL); // 输出错误信息并终止脚本
+}
+
+foreach (['ctype', 'date', 'filter', 'json', 'libxml', 'pcre', 'simplexml'] as $ext) { // 遍历需要的 PHP 扩展
+    if (!extension_loaded($ext)) { // 如果扩展未加载
+        die("Please make sure '{$ext}' extension is available and enabled in your PHP configuration" . PHP_EOL); // 输出错误信息并终止脚本
+    }
+}
+
+libxml_use_internal_errors(true); // 开启 libxml 内部错误处理
+
+$eqivo = new Eqivo\App; // 创建 Eqivo\App 实例
+
+$eqivo
+    ->setConfig(new Eqivo\Config\Set) // 设置配置
+    ->addConfigResolver(new Eqivo\Config\CliArguments) // 添加从命令行参数解析配置的解析器
+    ->addConfigResolver(new Eqivo\Config\LegacyConfigFile) // 添加从旧的配置文件中解析配置的解析器
+    ->addConfigResolver(new Eqivo\Config\ConfigFile) // 添加从配置文件中解析配置的解析器
+    ->addConfigResolver(new Eqivo\Config\EnvironmentVars) // 添加从环境变量中解析配置的解析器
+    ->resolveConfig(); // 解析配置
+
+$eqivo->setHttpClient(new Eqivo\HttpClient); // 设置 HTTP 客户端
+
+$eqivo
+    ->setEventConsumer(new ESL\Event\Consumer) // 设置事件消费者
+    ->setPlanConsumer( // 设置计划消费者
+        (new Eqivo\Plan\Consumer) // 创建 Eqivo\Plan\Consumer 实例
+            ->setApp($eqivo) // 设置应用程序实例
+            ->setElementHandler(Plan\CaptureSpeech\Element::class, new Plan\CaptureSpeech\Handler) // 设置 Plan\CaptureSpeech 元素的处理器
+            ->setElementHandler(Plan\CaptureTones\Element::class, new Plan\CaptureTones\Handler) // 设置 Plan\CaptureTones 元素的处理器
+            ->setElementHandler(Plan\Conference\Element::class, new Plan\Conference\Handler) // 设置 Plan\Conference 元素的处理器
+            ->setElementHandler(Plan\Hangup\Element::class, new Plan\Hangup\Handler) // 设置 Plan\Hangup 元素的处理器
+            ->setElementHandler(Plan\Playback\Element::class, new Plan\Playback\Handler) // 设置 Plan\Playback 元素的处理器
+            ->setElementHandler(Plan\Record\Element::class, new Plan\Record\Handler) // 设置 Plan\Record 元素的处理器
+            ->setElementHandler(Plan\Redirect\Element::class, new Plan\Redirect\Handler) // 设置 Plan\Redirect 元素的处理器
+            ->setElementHandler(Plan\Silence\Element::class, new Plan\Silence\Handler) // 设置 Plan\Silence 元素的处理器
+            ->setElementHandler(Plan\Speak\Element::class, new Plan\Speak\Handler) // 设置 Plan\Speak 元素的处理器
+            ->setElementHandler(Eqivo\Plan\Dial\Element::class, new Eqivo\Plan\Dial\Handler) // 设置 Eqivo\Plan\Dial 元素的处理器
+            ->setElementHandler(Eqivo\Plan\PreAnswer\Element::class, new Eqivo\Plan\PreAnswer\Handler) // 设置 Eqivo\Plan\PreAnswer 元素的处理器
+            ->setElementHandler(Eqivo\Plan\SipTransfer\Element::class, new Eqivo\Plan\SipTransfer\Handler) // 设置 Eqivo\Plan\SipTransfer 元素的处理器
+    )
+    ->setPlanProducer( // 设置计划生产者
+        (new Eqivo\Plan\Producer) // 创建 Eqivo\Plan\Producer 实例
+            ->setApp($eqivo) // 设置应用程序实例
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\Conference) // 设置从 XML 元素解析成计划的 Conference 解析器
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\Dial) // 设置从 XML 元素解析成计划的 Dial 解析器
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\GetDigits) // 设置从 XML 元素解析成计划的 GetDigits 解析器
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\GetSpeech) // 设置从 XML 元素解析成计划的 GetSpeech 解析器
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\Hangup) // 设置从 XML 元素解析成计划的 Hangup 解析器
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\Play) // 设置从 XML 元素解析成计划的 Play 解析器
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\PreAnswer) // 设置从 XML 元素解析成计划的 PreAnswer 解析器
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\Record) // 设置从 XML 元素解析成计划的 Record 解析器
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\Redirect) // 设置从 XML 元素解析成计划的 Redirect 解析器
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\SipTransfer) // 设置从 XML 元素解析成计划的 SipTransfer 解析器
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\Speak) // 设置从 XML 元素解析成计划的 Speak 解析器
+            ->setRestXmlElementParser(new Eqivo\Plan\Parser\Wait) // 设置从 XML 元素解析成计划的 Wait 解析器
+    );
+
+$eqivo->setSignalProducer( // 设置信号生产者
+    (new Eqivo\Signal\Producer) // 创建 Eqivo\Signal\Producer 实例
+        ->setApp($eqivo) // 设置应用程序实例
+        ->setSignalHandler(Signal\Channel\DTMF::class, new Eqivo\Signal\Handler\Channel\DTMF) // 设置 Signal\Channel\DTMF 信号的处理器
+        ->setSignalHandler(Signal\Channel\Hangup::class, new Eqivo\Signal\Handler\Channel\Hangup) // 设置 Signal\Channel\Hangup 信号的处理器
+        ->setSignalHandler(Signal\Channel\Heartbeat::class, new Eqivo\Signal\Handler\Channel\Heartbeat) // 设置 Signal\Channel\Heartbeat 信号的处理器
+        ->setSignalHandler(Signal\Channel\MachineDetection::class, new Eqivo\Signal\Handler\Channel\MachineDetection) // 设置 Signal\Channel\MachineDetection 信号的处理器
+        ->setSignalHandler(Signal\Channel\Progress::class, new Eqivo\Signal\Handler\Channel\Progress) //vo\Plan\PreAnswer\Handler)
             ->setElementHandler(Eqivo\Plan\SipTransfer\Element::class, new Eqivo\Plan\SipTransfer\Handler)
     )
     ->setPlanProducer(
